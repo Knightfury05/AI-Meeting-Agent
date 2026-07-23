@@ -1,0 +1,76 @@
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/meetingai
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update   # options: none, update, create, create-drop, validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  servlet:
+    multipart:
+      max-file-size: 200MB # max file upload size
+      max-request-size: 200MB
+
+ollama:
+  base-url: http://192.168.1.25:11434 #to change
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}   # 24 hours
+
+app:
+  cors: # change ip here
+    allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.25:5173,http://192.168.1.7:5173
+  reminders:
+    enabled: true                        # set false to disable the post-meeting email/calendar step entirely
+    default-timezone: Asia/Kolkata       # change to your local IANA timezone
+    recap-event-delay-minutes: 60        # the guaranteed "review this meeting" event is scheduled this far after processing finishes
+    recap-event-duration-minutes: 30
+    action-item-default-hour: 9          # for action items with a parsed date but no time, defaults to 9 AM
+    action-item-event-duration-minutes: 30
+  ai:
+    # Prepended to every Aya prompt, before the transcript. Helps the LLM
+    # correctly interpret/preserve technical vocabulary instead of
+    # mistranslating or hallucinating it. Edit freely for your team.
+    domain-context: >
+      These are internal software engineering team meetings (sprint planning,
+      standups, retrospectives, design discussions). Expect technical
+      vocabulary such as API, REST, GraphQL, backlog, sprint, PR (pull
+      request), merge, branch, repo, deploy, staging, production, bug,
+      ticket, endpoint, database, frontend, backend, latency, CI/CD,
+      standup, retrospective. Treat these as intentional technical terms,
+      not transcription errors — keep them in their standard English form
+      even when the rest of the sentence is in another language.
+
+logging:
+  level:
+    com.meetingai: DEBUG
+    # Set to INFO instead of DEBUG if the console gets too noisy
+
+whisper:
+  model: large-v3-turbo
+  language: auto
+  script-path: faster_whisper_transcribe.py
+  # Space-separated technical terms Whisper should recognize and keep in
+  # Latin script rather than phonetically transliterating. Keep this short —
+  # it's injected into the decoder's prompt context, not a full vocabulary.
+  vocabulary-hint: "API REST GraphQL backlog sprint pull request PR merge branch repo deploy staging production bug ticket endpoint database frontend backend latency CI/CD standup retrospective"
+
+google:
+  calendar:
+    client-id: ${GOOGLE_CLIENT_ID}
+    client-secret: ${GOOGLE_CLIENT_SECRET}
+    redirect-uri: http://localhost:8081/api/google/oauth2/callback
+
+  oauth:
+    scopes: https://www.googleapis.com/auth/calendar.events,https://www.googleapis.com/auth/gmail.send
