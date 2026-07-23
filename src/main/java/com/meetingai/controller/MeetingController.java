@@ -10,10 +10,18 @@ import com.meetingai.entity.Meeting;
 import com.meetingai.service.MeetingChatService;
 import com.meetingai.service.MeetingService;
 import com.meetingai.service.WorkAssignmentService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,6 +36,7 @@ import java.util.stream.Collectors;
 */
 @RestController
 @RequestMapping("/api/meetings")
+@Tag(name = "Meetings", description = "Meeting upload, processing, chat and work assignment")
 public class MeetingController {
 
     private static final Logger log = LoggerFactory.getLogger(MeetingController.class);
@@ -53,10 +62,19 @@ public class MeetingController {
      *            -H "Authorization: Bearer <token>" \
      *            -F "audio=@/path/to/meeting.mp3" -F "title=Sprint Planning"
      */
-    @PostMapping("/analyze")
+    @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload audio for analysis", description = "Uploads an audio file and kicks off async transcription + summarization. Returns immediately with PENDING status — poll GET /api/meetings/{id} for the result.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "202", description = "Audio accepted, processing started",
+            content = @Content(schema = @Schema(implementation = MeetingStatusResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid file type or empty file")
+    })
     public ResponseEntity<MeetingStatusResponse> analyzeMeeting(
+            @Parameter(description = "Audio file to transcribe (mp3, wav, m4a, mp4, webm, ogg, flac)")
             @RequestParam("audio") MultipartFile audioFile,
+            @Parameter(description = "Optional meeting title")
             @RequestParam(value = "title", required = false) String title,
+            @Parameter(description = "Output language for summary")
             @RequestParam(value = "outputLanguage", required = false, defaultValue = "English") String outputLanguage) {
 
         log.info("=== /api/meetings/analyze called ===");
@@ -78,6 +96,12 @@ public class MeetingController {
      * until status is COMPLETED or FAILED.
      */
     @GetMapping("/{id}")
+    @Operation(summary = "Get meeting by ID", description = "Returns the full meeting result (transcript, summary, participants, etc.). Only returns if it belongs to the authenticated user.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Meeting found",
+            content = @Content(schema = @Schema(implementation = MeetingResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Meeting not found")
+    })
     public ResponseEntity<MeetingResponse> getMeeting(@PathVariable Long id) {
         log.info("=== GET /api/meetings/{} called ===", id);
         return ResponseEntity.ok(meetingService.getResponseById(id));
@@ -85,6 +109,8 @@ public class MeetingController {
 
     /** List the current user's meetings, most recent first (summary list for a dashboard view). */
     @GetMapping
+    @Operation(summary = "List user's meetings", description = "Returns a summary list of all meetings for the authenticated user, ordered by most recent first.")
+    @ApiResponse(responseCode = "200", description = "List of meetings")
     public ResponseEntity<List<MeetingSummaryView>> listMeetings() {
         log.info("=== GET /api/meetings (list) called ===");
         List<MeetingSummaryView> meetings = meetingService.getAllForCurrentUser().stream()
@@ -111,6 +137,8 @@ public class MeetingController {
      * to the current user.
      */
     @GetMapping("/{id}/chat")
+    @Operation(summary = "Get chat history", description = "Returns the full Q&A chat history for a meeting, oldest first.")
+    @ApiResponse(responseCode = "200", description = "Chat history retrieved")
     public ResponseEntity<List<ChatMessageResponse>> getChatHistory(@PathVariable Long id) {
         log.info("=== GET /api/meetings/{}/chat called ===", id);
         return ResponseEntity.ok(meetingChatService.getHistory(id));
@@ -123,6 +151,12 @@ public class MeetingController {
      * Only works once the meeting has finished processing (status COMPLETED).
      */
     @PostMapping("/{id}/chat")
+    @Operation(summary = "Ask a question about a meeting", description = "Sends a question grounded in the meeting's transcript/summary. Both the question and AI answer are persisted.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Answer generated",
+            content = @Content(schema = @Schema(implementation = ChatMessageResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Meeting not yet processed or invalid message")
+    })
     public ResponseEntity<ChatMessageResponse> askQuestion(@PathVariable Long id, @Valid @RequestBody ChatRequest request) {
         log.info("=== POST /api/meetings/{}/chat called ===", id);
         ChatMessageResponse response = meetingChatService.ask(id, request.getMessage());
@@ -130,6 +164,11 @@ public class MeetingController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Delete a meeting", description = "Permanently deletes a meeting, its audio file, and chat history. Only allowed if it belongs to the authenticated user.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Meeting deleted"),
+        @ApiResponse(responseCode = "404", description = "Meeting not found")
+    })
     public ResponseEntity<Void> deleteMeeting(@PathVariable Long id) {
         log.info("=== DELETE /api/meetings/{} called ===", id);
         meetingService.deleteMeeting(id);
@@ -153,6 +192,12 @@ public class MeetingController {
      * }
      */
     @PostMapping("/{id}/assign-work")
+    @Operation(summary = "Assign work items", description = "Sends one email per assignment via the user's connected Gmail account. Optionally creates Google Calendar events.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Work assignment(s) processed",
+            content = @Content(schema = @Schema(implementation = AssignWorkResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid request or Google not connected")
+    })
     public ResponseEntity<AssignWorkResponse> assignWork(@PathVariable Long id, @RequestBody AssignWorkRequest request) {
         log.info("=== POST /api/meetings/{}/assign-work called, {} assignment(s) ===",
                 id, request.getAssignments() != null ? request.getAssignments().size() : 0);

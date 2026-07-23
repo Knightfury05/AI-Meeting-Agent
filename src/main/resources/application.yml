@@ -52,6 +52,12 @@ app:
       not transcription errors — keep them in their standard English form
       even when the rest of the sentence is in another language.
 
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
 logging:
   level:
     com.meetingai: DEBUG

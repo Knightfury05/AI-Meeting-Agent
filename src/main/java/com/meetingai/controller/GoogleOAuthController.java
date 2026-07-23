@@ -1,6 +1,11 @@
 package com.meetingai.controller;
 
 import com.meetingai.service.GoogleOAuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +16,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/google")
 @RequiredArgsConstructor
+@Tag(name = "Google OAuth", description = "Google account connection and OAuth flow")
 public class GoogleOAuthController {
 
     private final GoogleOAuthService googleOAuthService;
@@ -26,6 +32,8 @@ public class GoogleOAuthController {
      * The response contains the Google authorization URL.
      */
     @GetMapping("/oauth2/authorize")
+    @Operation(summary = "Get Google OAuth URL", description = "Returns the Google authorization URL for the current user to connect their Google account.")
+    @ApiResponse(responseCode = "200", description = "Authorization URL generated")
     public ResponseEntity<?> authorizeGoogle() {
 
         try {
@@ -72,8 +80,15 @@ public class GoogleOAuthController {
      * in the current local implementation.
      */
     @GetMapping("/oauth2/callback")
+    @Operation(summary = "Google OAuth callback", description = "Handles the OAuth redirect from Google. Exchanges the authorization code for tokens and saves the connection.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Google account connected"),
+        @ApiResponse(responseCode = "400", description = "Invalid OAuth state")
+    })
     public ResponseEntity<?> googleCallback(
+            @Parameter(description = "Authorization code from Google")
             @RequestParam("code") String code,
+            @Parameter(description = "State parameter containing user ID")
             @RequestParam("state") String state
     ) {
 
@@ -145,6 +160,8 @@ public class GoogleOAuthController {
      * GET /api/google/status
      */
     @GetMapping("/status")
+    @Operation(summary = "Check Google connection status", description = "Returns whether the current user has a connected Google account.")
+    @ApiResponse(responseCode = "200", description = "Connection status returned")
     public ResponseEntity<?> getGoogleStatus() {
 
         try {
@@ -188,6 +205,8 @@ public class GoogleOAuthController {
      * DELETE /api/google/disconnect
      */
     @DeleteMapping("/disconnect")
+    @Operation(summary = "Disconnect Google account", description = "Disconnects the current user's Google account from the application.")
+    @ApiResponse(responseCode = "200", description = "Google account disconnected")
     public ResponseEntity<?> disconnectGoogle() {
 
         try {

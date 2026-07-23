@@ -2,6 +2,13 @@ package com.meetingai.controller;
 
 import com.google.api.services.calendar.model.Event;
 import com.meetingai.service.GoogleCalendarService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +21,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/google/calendar")
 @RequiredArgsConstructor
+@Tag(name = "Google Calendar", description = "Create, read, update and delete Google Calendar events")
 public class GoogleCalendarController {
 
     private final GoogleCalendarService googleCalendarService;
@@ -39,7 +47,14 @@ public class GoogleCalendarController {
      * }
      */
     @PostMapping("/events")
+    @Operation(summary = "Create a calendar event", description = "Creates a Google Calendar event with optional attendees.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Event created"),
+        @ApiResponse(responseCode = "400", description = "Invalid request")
+    })
     public ResponseEntity<?> createEvent(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Event details", required = true,
+                content = @Content(schema = @Schema(implementation = CreateEventRequest.class)))
             @RequestBody CreateEventRequest request
     ) {
 
@@ -100,7 +115,10 @@ public class GoogleCalendarController {
      * /api/google/calendar/events?maxResults=20
      */
     @GetMapping("/events")
+    @Operation(summary = "List upcoming events", description = "Returns upcoming Google Calendar events for the connected account.")
+    @ApiResponse(responseCode = "200", description = "Events retrieved")
     public ResponseEntity<?> getUpcomingEvents(
+            @Parameter(description = "Maximum number of events to return (max 100)")
             @RequestParam(
                     defaultValue = "20"
             )
@@ -164,7 +182,13 @@ public class GoogleCalendarController {
      * /api/google/calendar/events/{eventId}
      */
     @GetMapping("/events/{eventId}")
+    @Operation(summary = "Get event by ID", description = "Returns a specific Google Calendar event.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Event found"),
+        @ApiResponse(responseCode = "404", description = "Event not found")
+    })
     public ResponseEntity<?> getEvent(
+            @Parameter(description = "Google Calendar event ID")
             @PathVariable String eventId
     ) {
 
@@ -210,8 +234,16 @@ public class GoogleCalendarController {
      * /api/google/calendar/events/{eventId}
      */
     @PutMapping("/events/{eventId}")
+    @Operation(summary = "Update an event", description = "Updates an existing Google Calendar event.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Event updated"),
+        @ApiResponse(responseCode = "404", description = "Event not found")
+    })
     public ResponseEntity<?> updateEvent(
+            @Parameter(description = "Google Calendar event ID")
             @PathVariable String eventId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Updated event details", required = true,
+                content = @Content(schema = @Schema(implementation = UpdateEventRequest.class)))
             @RequestBody UpdateEventRequest request
     ) {
 
@@ -268,7 +300,13 @@ public class GoogleCalendarController {
      * /api/google/calendar/events/{eventId}
      */
     @DeleteMapping("/events/{eventId}")
+    @Operation(summary = "Delete an event", description = "Deletes a Google Calendar event.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Event deleted"),
+        @ApiResponse(responseCode = "404", description = "Event not found")
+    })
     public ResponseEntity<?> deleteEvent(
+            @Parameter(description = "Google Calendar event ID")
             @PathVariable String eventId
     ) {
 

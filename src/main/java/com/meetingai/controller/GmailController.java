@@ -2,6 +2,12 @@ package com.meetingai.controller;
 
 import com.google.api.services.gmail.model.Message;
 import com.meetingai.service.GmailService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +18,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/google/gmail")
 @RequiredArgsConstructor
+@Tag(name = "Gmail", description = "Send emails via connected Gmail account")
 public class GmailController {
 
     private final GmailService gmailService;
@@ -33,7 +40,14 @@ public class GmailController {
      * }
      */
     @PostMapping("/send")
+    @Operation(summary = "Send an email", description = "Sends an email using the current user's connected Gmail account.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Email sent successfully"),
+        @ApiResponse(responseCode = "400", description = "Missing required fields (to, subject, body)")
+    })
     public ResponseEntity<?> sendEmail(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Email details", required = true,
+                content = @Content(schema = @Schema(implementation = SendEmailRequest.class)))
             @RequestBody SendEmailRequest request
     ) {
 
