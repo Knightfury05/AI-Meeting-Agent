@@ -81,6 +81,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/api-docs/**").permitAll()
                 // Google redirects the user's browser straight to this URL after
                 // consent — there is no Authorization header on that request, so
                 // it can't be behind JWT auth. The userId is instead recovered
