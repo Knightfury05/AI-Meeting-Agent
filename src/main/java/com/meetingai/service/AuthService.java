@@ -1,5 +1,6 @@
 package com.meetingai.service;
 
+import com.meetingai.dto.AdminRegisterRequest;
 import com.meetingai.dto.AuthResponse;
 import com.meetingai.dto.LoginRequest;
 import com.meetingai.dto.RegisterRequest;
@@ -9,6 +10,7 @@ import com.meetingai.repository.UserRepository;
 import com.meetingai.security.JwtService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -24,6 +26,9 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+
+    @Value("${app.admin.registration-code}")
+    private String adminRegistrationCode;
 
     public AuthService(UserRepository userRepository,
                         PasswordEncoder passwordEncoder,
@@ -63,6 +68,38 @@ public class AuthService {
                 .userId(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
+                .role(user.getRole().name())
+                .build();
+    }
+
+    public AuthResponse registerAdmin(AdminRegisterRequest request) {
+        if (!adminRegistrationCode.equals(request.getAdminCode())) {
+            throw new IllegalArgumentException("Invalid admin registration code");
+        }
+
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            throw new IllegalArgumentException("An account with this email already exists");
+        }
+
+        User user = User.builder()
+                .name(request.getName().trim())
+                .email(normalizedEmail)
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(Role.ADMIN)
+                .build();
+
+        user = userRepository.save(user);
+        log.info("[Auth] New admin registered, id={}, email={}", user.getId(), user.getEmail());
+
+        String token = jwtService.generateToken(user);
+        return AuthResponse.builder()
+                .token(token)
+                .userId(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .role(user.getRole().name())
                 .build();
     }
 
@@ -85,13 +122,14 @@ public class AuthService {
                 .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
 
         String token = jwtService.generateToken(user);
-        log.info("[Auth] User logged in, id={}, email={}", user.getId(), user.getEmail());
+        log.info("[Auth] User logged in, id={}, email={}, role={}", user.getId(), user.getEmail(), user.getRole());
 
         return AuthResponse.builder()
                 .token(token)
                 .userId(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
+                .role(user.getRole().name())
                 .build();
     }
 }

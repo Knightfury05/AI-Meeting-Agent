@@ -1,5 +1,6 @@
 package com.meetingai.security;
 
+import com.meetingai.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -44,11 +46,16 @@ public class JwtService {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
 
+        String role = userDetails instanceof User user
+                ? user.getRole().name()
+                : "USER";
+
         return Jwts.builder()
                 .subject(userDetails.getUsername()) // email
+                .claims(Map.of("role", role))
                 .issuedAt(now)
                 .expiration(expiry)
-                .signWith(signingKey()) // single-arg overload infers HS256 from the key's algorithm/size
+                .signWith(signingKey())
                 .compact();
     }
 

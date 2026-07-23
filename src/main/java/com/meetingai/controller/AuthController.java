@@ -1,5 +1,6 @@
 package com.meetingai.controller;
 
+import com.meetingai.dto.AdminRegisterRequest;
 import com.meetingai.dto.AuthResponse;
 import com.meetingai.dto.LoginRequest;
 import com.meetingai.dto.RegisterRequest;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
-@Tag(name = "Authentication", description = "Register and login endpoints")
+@Tag(name = "Authentication", description = "Register, admin register, and login endpoints")
 public class AuthController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
@@ -40,6 +41,19 @@ public class AuthController {
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         log.info("=== POST /api/auth/register called, email={} ===", request.getEmail());
         AuthResponse response = authService.register(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/admin/register")
+    @Operation(summary = "Register a new admin", description = "Creates a new admin account. Requires a valid admin registration code.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Admin registered successfully",
+            content = @Content(schema = @Schema(implementation = AuthResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid admin code, validation error, or email already taken")
+    })
+    public ResponseEntity<AuthResponse> registerAdmin(@Valid @RequestBody AdminRegisterRequest request) {
+        log.info("=== POST /api/auth/admin/register called, email={} ===", request.getEmail());
+        AuthResponse response = authService.registerAdmin(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
