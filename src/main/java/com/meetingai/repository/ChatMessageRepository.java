@@ -12,4 +12,6 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
     // Oldest first — this is chat display order, and also the order the
     // prompt-building code replays history back to the model in.
     List<ChatMessage> findAllByMeetingIdOrderByCreatedAtAsc(Long meetingId);
+
+    void deleteAllByMeetingId(Long meetingId);
 }

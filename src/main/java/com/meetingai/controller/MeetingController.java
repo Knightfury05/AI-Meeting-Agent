@@ -129,6 +129,13 @@ public class MeetingController {
         return ResponseEntity.ok(response);
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteMeeting(@PathVariable Long id) {
+        log.info("=== DELETE /api/meetings/{} called ===", id);
+        meetingService.deleteMeeting(id);
+        return ResponseEntity.noContent().build();
+    }
+
     /**
      * Sends one email per person in the request body — each containing
      * only their own task from this meeting. Powers the "Assign Work"

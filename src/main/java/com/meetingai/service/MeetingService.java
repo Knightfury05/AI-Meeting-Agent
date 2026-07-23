@@ -5,14 +5,17 @@ import com.meetingai.dto.*;
 import com.meetingai.entity.Meeting;
 import com.meetingai.entity.MeetingStatus;
 import com.meetingai.entity.User;
+import com.meetingai.repository.ChatMessageRepository;
 import com.meetingai.repository.MeetingRepository;
 import com.meetingai.security.CurrentUserProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
@@ -38,14 +41,17 @@ public class MeetingService {
     private final MeetingRepository meetingRepository;
     private final MeetingProcessingService meetingProcessingService;
     private final CurrentUserProvider currentUserProvider;
+    private final ChatMessageRepository chatMessageRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public MeetingService(MeetingRepository meetingRepository,
                            MeetingProcessingService meetingProcessingService,
-                           CurrentUserProvider currentUserProvider) {
+                           CurrentUserProvider currentUserProvider,
+                           ChatMessageRepository chatMessageRepository) {
         this.meetingRepository = meetingRepository;
         this.meetingProcessingService = meetingProcessingService;
         this.currentUserProvider = currentUserProvider;
+        this.chatMessageRepository = chatMessageRepository;
     }
 
     /**
@@ -149,6 +155,25 @@ public class MeetingService {
      */
     public Meeting getOwnedMeetingEntity(Long id) {
         return getOwnedMeetingOrThrow(id);
+    }
+
+    @Transactional
+    public void deleteMeeting(Long id) {
+        Meeting meeting = getOwnedMeetingOrThrow(id);
+        log.info("Deleting meeting id={} title='{}'", meeting.getId(), meeting.getTitle());
+
+        if (meeting.getAudioFilePath() != null) {
+            try {
+                Files.deleteIfExists(Path.of(meeting.getAudioFilePath()));
+                log.info("Deleted audio file: {}", meeting.getAudioFilePath());
+            } catch (IOException e) {
+                log.warn("Failed to delete audio file {}: {}", meeting.getAudioFilePath(), e.getMessage());
+            }
+        }
+
+        chatMessageRepository.deleteAllByMeetingId(meeting.getId());
+        meetingRepository.delete(meeting);
+        log.info("Meeting id={} deleted successfully", id);
     }
 
     /**
