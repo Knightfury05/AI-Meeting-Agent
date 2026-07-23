@@ -10,8 +10,8 @@ import lombok.Getter;
 public class SystemStatsResponse {
     private long totalUsers;
     private long totalMeetings;
-    private long meetingsPending;
-    private long meetingsCompleted;
-    private long meetingsFailed;
-    private long meetingsProcessing;
+    private long pendingCount;
+    private long completedCount;
+    private long failedCount;
+    private long processingCount;
 }

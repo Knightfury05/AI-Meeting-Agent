@@ -55,10 +55,10 @@ public class AdminService {
         return SystemStatsResponse.builder()
                 .totalUsers(totalUsers)
                 .totalMeetings(totalMeetings)
-                .meetingsPending(pending)
-                .meetingsCompleted(completed)
-                .meetingsFailed(failed)
-                .meetingsProcessing(transcribing + summarizing)
+                .pendingCount(pending)
+                .completedCount(completed)
+                .failedCount(failed)
+                .processingCount(transcribing + summarizing)
                 .build();
     }
 }
