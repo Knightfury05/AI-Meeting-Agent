@@ -20,6 +20,9 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
     // Most recent meetings first
     List<Meeting> findAllByOrderByCreatedAtDesc();
 
+    long countByStatus(MeetingStatus status);
+    long countByUserId(Long userId);
+
     // --- Ownership-scoped queries: every list/lookup the controller exposes
     // goes through one of these instead of the unscoped methods above, so a
     // user can only ever see their own meetings. ---
