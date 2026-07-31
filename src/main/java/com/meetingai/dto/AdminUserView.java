@@ -13,6 +13,7 @@ public class AdminUserView {
     private String name;
     private String email;
     private String role;
+    private String status;
     private String createdAt;
     private long meetingCount;
 
@@ -22,6 +23,7 @@ public class AdminUserView {
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(user.getRole().name())
+                .status(user.getStatus().name())
                 .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null)
                 .meetingCount(meetingCount)
                 .build();

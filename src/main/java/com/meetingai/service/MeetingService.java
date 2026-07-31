@@ -147,6 +147,37 @@ public class MeetingService {
         return meetingRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
     }
 
+    /** Fetch a single meeting's full result by ID without ownership check — used by admin endpoints. */
+    @Transactional(readOnly = true)
+    public MeetingResponse getByIdForAdmin(Long id) {
+        Meeting meeting = meetingRepository.findById(id)
+                .orElseThrow(() -> new java.util.NoSuchElementException("Meeting not found: " + id));
+
+        MeetingAnalysisResult result = new MeetingAnalysisResult();
+        result.setSummary(meeting.getSummary());
+        try {
+            result.setParticipants(meeting.getParticipantsJson() != null
+                    ? objectMapper.readValue(meeting.getParticipantsJson(), objectMapper.getTypeFactory().constructCollectionType(List.class, Participant.class))
+                    : Collections.emptyList());
+            result.setTopics(meeting.getTopicsJson() != null
+                    ? objectMapper.readValue(meeting.getTopicsJson(), objectMapper.getTypeFactory().constructCollectionType(List.class, Topic.class))
+                    : Collections.emptyList());
+            result.setActionItems(meeting.getActionItemsJson() != null
+                    ? objectMapper.readValue(meeting.getActionItemsJson(), objectMapper.getTypeFactory().constructCollectionType(List.class, ActionItem.class))
+                    : Collections.emptyList());
+            result.setDecisions(meeting.getDecisionsJson() != null
+                    ? objectMapper.readValue(meeting.getDecisionsJson(), List.class)
+                    : Collections.emptyList());
+            result.setOpenQuestions(meeting.getOpenQuestionsJson() != null
+                    ? objectMapper.readValue(meeting.getOpenQuestionsJson(), List.class)
+                    : Collections.emptyList());
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to parse stored meeting JSON: " + e.getMessage(), e);
+        }
+
+        return toResponse(meeting, result);
+    }
+
     /**
      * Loads the raw Meeting entity (not the DTO) for the current user —
      * used by MeetingChatService, which needs the entity's transcript and
