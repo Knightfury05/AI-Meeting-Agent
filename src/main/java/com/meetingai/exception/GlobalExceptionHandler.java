@@ -94,6 +94,18 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * State precondition failures — most commonly "Google account is not
+     * connected" (thrown by the Google services when an action needs OAuth
+     * credentials the user hasn't set up yet). The message is actionable
+     * client guidance, so it's safe to return as a 400.
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
+        log.info("Illegal state: {}", ex.getMessage());
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    /**
      * The local Ollama call failed (not running, wrong host, model not
      * pulled). Unlike the generic 500 case, this message is safe to show
      * as-is — it's actionable local-dev guidance, not internal detail.

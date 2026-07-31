@@ -2,8 +2,10 @@ package com.meetingai.controller;
 
 import com.meetingai.dto.AdminRegisterRequest;
 import com.meetingai.dto.AuthResponse;
+import com.meetingai.dto.ForgotPasswordRequest;
 import com.meetingai.dto.LoginRequest;
 import com.meetingai.dto.RegisterRequest;
+import com.meetingai.dto.ResetPasswordRequest;
 import com.meetingai.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -68,5 +70,21 @@ public class AuthController {
         log.info("=== POST /api/auth/login called, email={} ===", request.getEmail());
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Request password reset", description = "Sends a password reset link to the given email if an account exists. Always returns 200 regardless of whether the account exists.")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        log.info("=== POST /api/auth/forgot-password called, email={} ===", request.getEmail());
+        authService.requestPasswordReset(request.getEmail());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset password", description = "Sets a new password using a valid, unexpired reset token from the emailed link.")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        log.info("=== POST /api/auth/reset-password called ===");
+        authService.resetPassword(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok().build();
     }
 }

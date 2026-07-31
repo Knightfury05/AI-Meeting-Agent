@@ -114,6 +114,12 @@
 			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
 
+		<!-- Email sending (SMTP) — used for password reset emails -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
 		<!-- JWT creation/parsing -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>

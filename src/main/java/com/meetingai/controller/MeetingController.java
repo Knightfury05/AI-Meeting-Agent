@@ -4,11 +4,17 @@ import com.meetingai.dto.AssignWorkRequest;
 import com.meetingai.dto.AssignWorkResponse;
 import com.meetingai.dto.ChatMessageResponse;
 import com.meetingai.dto.ChatRequest;
+import com.meetingai.dto.MeetingReplyRequest;
+import com.meetingai.dto.MeetingReplyResponse;
 import com.meetingai.dto.MeetingResponse;
 import com.meetingai.dto.MeetingStatusResponse;
+import com.meetingai.dto.TranslateMeetingRequest;
+import com.meetingai.dto.TranslatedMeetingResponse;
 import com.meetingai.entity.Meeting;
 import com.meetingai.service.MeetingChatService;
+import com.meetingai.service.MeetingReplyService;
 import com.meetingai.service.MeetingService;
+import com.meetingai.service.MeetingTranslationService;
 import com.meetingai.service.WorkAssignmentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -44,12 +50,18 @@ public class MeetingController {
     private final MeetingService meetingService;
     private final MeetingChatService meetingChatService;
     private final WorkAssignmentService workAssignmentService;
+    private final MeetingReplyService meetingReplyService;
+    private final MeetingTranslationService meetingTranslationService;
 
     public MeetingController(MeetingService meetingService, MeetingChatService meetingChatService,
-                              WorkAssignmentService workAssignmentService) {
+                              WorkAssignmentService workAssignmentService,
+                              MeetingReplyService meetingReplyService,
+                              MeetingTranslationService meetingTranslationService) {
         this.meetingService = meetingService;
         this.meetingChatService = meetingChatService;
         this.workAssignmentService = workAssignmentService;
+        this.meetingReplyService = meetingReplyService;
+        this.meetingTranslationService = meetingTranslationService;
     }
 
     /**
@@ -202,5 +214,92 @@ public class MeetingController {
         log.info("=== POST /api/meetings/{}/assign-work called, {} assignment(s) ===",
                 id, request.getAssignments() != null ? request.getAssignments().size() : 0);
         return ResponseEntity.ok(workAssignmentService.assignWork(id, request));
+    }
+
+    /**
+     * Sends a client-facing email about this meeting, addressed to a
+     * manually-entered recipient. The AI writes the subject + body grounded
+     * in the meeting's transcript and summary, then the email is sent through
+     * the current user's connected Gmail account (same mechanism as
+     * GmailController and assign-work), so Google must already be connected.
+     *
+     * POST /api/meetings/{id}/reply
+     * {
+     *   "recipientName": "Acme Corp",
+     *   "recipientEmail": "client@acme.com"
+     * }
+     */
+    @PostMapping("/{id}/reply")
+    @Operation(summary = "Reply to client", description = "AI writes a client-facing email (subject + body) grounded in the meeting, then sends it to the given recipient via the user's connected Gmail account.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Email generated and sent",
+            content = @Content(schema = @Schema(implementation = MeetingReplyResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Meeting not finished processing, invalid recipient, or Google not connected")
+    })
+    public ResponseEntity<MeetingReplyResponse> replyToClient(@PathVariable Long id, @Valid @RequestBody MeetingReplyRequest request) {
+        log.info("=== POST /api/meetings/{}/reply called, to={} ===", id, request.getRecipientEmail());
+        return ResponseEntity.ok(meetingReplyService.reply(id, request));
+    }
+
+    /**
+     * Like /reply but only drafts the email — the AI writes the subject +
+     * body grounded in the meeting's transcript/summary and the backend
+     * returns them WITHOUT sending anything, so the UI can show a preview
+     * before the user confirms. The confirmed draft can then be posted back
+     * to /reply (with subject + body) so exactly what was reviewed is sent.
+     *
+     * POST /api/meetings/{id}/reply/draft
+     * {
+     *   "recipientName": "Acme Corp",
+     *   "recipientEmail": "client@acme.com"
+     * }
+     */
+    @PostMapping("/{id}/reply/draft")
+    @Operation(summary = "Draft reply to client", description = "AI writes a client-facing email (subject + body) grounded in the meeting WITHOUT sending it, so the UI can preview before the user confirms.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Draft generated (nothing sent)",
+            content = @Content(schema = @Schema(implementation = MeetingReplyResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Meeting not finished processing or invalid recipient"),
+        @ApiResponse(responseCode = "503", description = "Local AI model unreachable")
+    })
+    public ResponseEntity<MeetingReplyResponse> draftReplyToClient(@PathVariable Long id, @Valid @RequestBody MeetingReplyRequest request) {
+        log.info("=== POST /api/meetings/{}/reply/draft called, to={} ===", id, request.getRecipientEmail());
+        return ResponseEntity.ok(meetingReplyService.draft(id, request));
+    }
+
+    /**
+     * Returns the list of languages the translate endpoint accepts, so the
+     * sidebar dropdown is always in sync with backend validation.
+     */
+    @GetMapping("/languages")
+    @Operation(summary = "List supported translation languages", description = "Returns the languages the translate endpoint can translate a meeting into.")
+    @ApiResponse(responseCode = "200", description = "Supported languages")
+    public ResponseEntity<java.util.Set<String>> listLanguages() {
+        log.info("=== GET /api/meetings/languages called ===");
+        return ResponseEntity.ok(MeetingTranslationService.supportedLanguages());
+    }
+
+    /**
+     * Translates a completed meeting's analysis (summary, topics, action
+     * items, decisions, open questions) into the requested language using
+     * Google Gemini. Nothing is persisted — the translated copy is returned
+     * to the UI to render below the original.
+     *
+     * POST /api/meetings/{id}/translate
+     * { "targetLanguage": "Tamil" }
+     */
+    @PostMapping("/{id}/translate")
+    @Operation(summary = "Translate meeting analysis", description = "Translates the meeting's summary, topics, action items, decisions, and open questions into the requested language via Google Gemini. Returns the translated content for display without persisting it.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Translated analysis",
+            content = @Content(schema = @Schema(implementation = TranslatedMeetingResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Meeting not finished processing or unsupported language"),
+        @ApiResponse(responseCode = "503", description = "Translation service unreachable")
+    })
+    public ResponseEntity<TranslatedMeetingResponse> translateMeeting(@PathVariable Long id,
+                                                                      @Valid @RequestBody TranslateMeetingRequest request) {
+        log.info("=== POST /api/meetings/{}/translate called, targetLanguage={} ===",
+                id, request.getTargetLanguage());
+        return ResponseEntity.ok(meetingTranslationService.translate(id, request));
     }
 }
